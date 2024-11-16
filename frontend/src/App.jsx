@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Container,
@@ -5,13 +6,18 @@ import {
   Box,
   Alert,
   Fade,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
+import { Search as SearchIcon } from '@mui/icons-material';
 import { getContacts, createContact, updateContact, deleteContact } from './services/api';
 import ContactsTable from './components/ContactsTable';
 import EditDialog from './components/EditDialog';
 
 const App = () => {
   const [contacts, setContacts] = useState([]);
+  const [filteredContacts, setFilteredContacts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -29,10 +35,40 @@ const App = () => {
     fetchContacts();
   }, []);
 
+  useEffect(() => {
+    handleSearch(searchQuery);
+  }, [contacts, searchQuery]);
+
+  const handleSearch = (query) => {
+    const lowercaseQuery = query.toLowerCase().trim();
+    
+    if (!lowercaseQuery) {
+      setFilteredContacts(contacts);
+      return;
+    }
+
+    const filtered = contacts.filter(contact => {
+      const searchableFields = [
+        contact.firstName,
+        contact.lastName,
+        contact.email,
+        contact.phoneNumber,
+        contact.company,
+        contact.jobTitle,
+        `${contact.firstName} ${contact.lastName}` // Full name
+      ].map(field => (field || '').toLowerCase());
+
+      return searchableFields.some(field => field.includes(lowercaseQuery));
+    });
+
+    setFilteredContacts(filtered);
+  };
+
   const fetchContacts = async () => {
     try {
       const { data } = await getContacts();
       setContacts(data);
+      setFilteredContacts(data);
     } catch (error) {
       showAlert('Failed to fetch contacts', 'error');
     }
@@ -139,9 +175,35 @@ const App = () => {
             onSubmit={handleAddOrUpdateContact}
             isEditing={isEditing}
           />
+
+          <Box sx={{ width: '100%', maxWidth: 1000, mb: 2 }}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Search contacts by name, email, company..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                backgroundColor: 'white',
+                borderRadius: 1,
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: 'primary.main',
+                  },
+                },
+              }}
+            />
+          </Box>
           
           <ContactsTable 
-            contacts={contacts}
+            contacts={filteredContacts}
             onEdit={handleEditContact}
             onDelete={handleDeleteContact}
           />
